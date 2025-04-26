@@ -1,0 +1,62 @@
+# Ignore compiled binary files
+*.exe
+*.out
+*.app
+*.dll
+*.so
+*.dylib
+
+# Ignore object files
+*.o
+*.obj
+*.lo
+*.a
+*.lib
+*.la
+*.pch
+*.pdb
+
+# Ignore dependency files
+*.d
+*.dep
+
+# Ignore debug and release folders
+Debug/
+Release/
+build/
+CMakeFiles/
+CMakeCache.txt
+
+# Ignore IDE-specific files (Visual Studio, Code::Blocks, CLion, etc.)
+*.sln
+*.vcxproj*
+*.csproj*
+*.ncb
+*.suo
+*.user
+*.vcproj*
+*.CBP
+*.layout
+*.idea/
+*.vscode/
+
+# Ignore generated Makefiles
+Makefile
+Makefile.in
+CMakeLists.txt.user
+
+# Ignore log and temporary files
+*.log
+*.tmp
+*.swp
+*.bak
+*.cache
+
+# Ignore compiled Python scripts
+*.pyc
+*.pyo
+
+# Ignore package managers
+node_modules/
+__pycache__/
+.vcpkg/
