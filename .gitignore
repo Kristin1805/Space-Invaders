@@ -26,6 +26,20 @@ Release/
 build/
 CMakeFiles/
 CMakeCache.txt
+CMakeLists.txt.user
+
+# Ignore generated Makefiles
+Makefile
+Makefile.in
+
+# Ignore CMake build folders and files
+cmake-build-*/
+cmake-build-debug/
+cmake-build-debug/**/*
+*.ninja
+*.json
+*.cmake
+*.txt.user
 
 # Ignore IDE-specific files (Visual Studio, Code::Blocks, CLion, etc.)
 *.sln
@@ -39,11 +53,6 @@ CMakeCache.txt
 *.layout
 *.idea/
 *.vscode/
-
-# Ignore generated Makefiles
-Makefile
-Makefile.in
-CMakeLists.txt.user
 
 # Ignore log and temporary files
 *.log
@@ -60,3 +69,8 @@ CMakeLists.txt.user
 node_modules/
 __pycache__/
 .vcpkg/
+
+# Other build artifacts
+build/
+out/
+bin/
