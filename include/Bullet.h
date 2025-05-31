@@ -18,5 +18,3 @@ public:
     void setDirection(int direction);
 };
 
-#endif // BULLET_H
-

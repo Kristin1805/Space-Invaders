@@ -50,4 +50,3 @@ public:
     void setColor(COLORS color);
 };
 
-#endif // GAMEOBJECT_H
