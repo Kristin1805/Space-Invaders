@@ -3,25 +3,29 @@
 
 #include <vector>
 #include <string>
-#include <chrono>
+#include <chrono> 
 #include <random>
 
 #include "Player.h"
 #include "Bullet.h"
 #include "Enemy.h"
-#include "GameObject.h" // Уверяваме се, че е включен за draw_char
+#include "GameObject.h"
 
 const int SCREEN_WIDTH = 80;
 const int SCREEN_HEIGHT = 30;
-const int GAME_SPEED_MS = 100; // Пример: 100 милисекунди за по-бавна игра
+const int GAME_SPEED_MS = 100; 
+
+
+const int PLAYER_FIRE_COOLDOWN_MS = 300; 
+
 
 class Game {
 private:
     bool running;
     bool gameOver;
     int score;
-    int currentLevel; // <<< НОВО: Текущо ниво на играта
-    int lastExtraLifeScore; // <<< НОВО: Точки, при които последно е получен допълнителен живот
+    int currentLevel;
+    int lastExtraLifeScore;
 
     Player* player;
     std::vector<Bullet*> playerBullets;
@@ -32,10 +36,12 @@ private:
     HANDLE hConsoleOutput;
 
     std::chrono::steady_clock::time_point lastFrameTime;
+    std::chrono::steady_clock::time_point lastPlayerFireTime; 
+
     int enemyMoveTimer;
     int enemyFireTimer;
-    int enemyMoveFrequency; // <<< НОВО: Честота на движение на враговете (зависи от нивото)
-    int enemyFireFrequency; // <<< НОВО: Честота на стрелба на враговете (зависи от нивото)
+    int enemyMoveFrequency;
+    int enemyFireFrequency;
     std::mt19937 rng;
 
     // Помощни методи
@@ -44,15 +50,15 @@ private:
     void processInput();
     void updateGame();
     void renderGame();
-    void spawnEnemies(); // <<< НОВО: Вече ще се адаптира към нивото
+    void spawnEnemies();
     void handleCollisions();
     void cleanupBullets();
-    void checkWinCondition(); // <<< НОВО: Проверява дали нивото е спечелено
+    void checkWinCondition();
     void drawBorder() const;
     void drawString(const std::wstring& str, int y, int x, COLORS foreground_color, COLORS background_color, HANDLE target_buffer) const;
 
-    void resetForNewLevel(); // <<< НОВО: Подготвя играта за ново ниво
-    void resetGame();        // <<< НОВО: Рестартира играта от ниво 1
+    void resetForNewLevel();
+    void resetGame();
 
 public:
     Game();

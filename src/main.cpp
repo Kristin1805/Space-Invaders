@@ -1,8 +1,8 @@
 #include <iostream>
-#include <windows.h> // Required for SetConsoleOutputCP, SetConsoleCP, SetConsoleTitleW
-#include <locale>    // Required for std::locale
-#include <io.h>      // Required for _setmode
-#include <fcntl.h>   // Required for _O_U8TEXT
+#include <windows.h> 
+#include <locale>
+#include <io.h>
+#include <fcntl.h>
 
 #include "Game.h"
 

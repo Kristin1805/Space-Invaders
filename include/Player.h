@@ -21,8 +21,8 @@ public:
     void moveLeft();
     void moveRight(int screenWidth);
     void loseLife(); // Намалява животите на играча
-    void addLife();  // <<< НОВО: Добавя живот
-    void resetLives(); // <<< НОВО: Връща животите до начална стойност
+    void addLife();  
+    void resetLives(); 
     int getLives() const;
     int getScore() const;
     void addScore(int points);

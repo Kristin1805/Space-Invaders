@@ -8,40 +8,36 @@ Player::Player(int x)
     : GameObject(x, PLAYER_Y_START, L'▲', LIGHT_GREEN), lives(PLAYER_INITIAL_LIVES), score(0) {
 }
 
-// --- Предефинирани виртуални функции ---
-void Player::update(int screenWidth) {
-    // Тази функция може да се използва за вътрешни таймери/състояния на играча
-}
+//Предефинирани виртуални функции
+void Player::update(int screenWidth) {}
 
 void Player::render(HANDLE target_buffer) const {
     draw_char(symbol, y, x, color, COLORS::BLACK, target_buffer);
 }
 
-// --- Специфични методи за играча ---
 void Player::moveLeft() {
-    if (x > 1) { // Проверка за лява граница
+    if (x > 1) { 
         x--;
     }
 }
 
 void Player::moveRight(int screenWidth) {
-    if (x < screenWidth - 2) { // Проверка за дясна граница
+    if (x < screenWidth - 2) { 
         x++;
     }
 }
 
 void Player::loseLife() {
-    if (lives > 0) { // Уверяваме се, че не губим живот под 0
+    if (lives > 0) { 
         lives--;
     }
 }
 
-void Player::addLife() { // <<< НОВО: Добавя живот (с лимит по желание)
+void Player::addLife() { 
     lives++;
-    // Може да добавите лимит на животите, напр. if (lives < MAX_LIVES) lives++;
 }
 
-void Player::resetLives() { // <<< НОВО: Връща животите до начална стойност
+void Player::resetLives() { 
     lives = PLAYER_INITIAL_LIVES;
 }
 
