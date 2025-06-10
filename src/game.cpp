@@ -1,77 +1,81 @@
 ﻿#include "Game.h"
-#include <iostream>
-#include <utility>
 #include <conio.h>
 #include <thread>
 #include <algorithm>
-#include <vector>
-#include <chrono>
-#include <random>
 #include <string>
+#include <iostream> // За std::wcout
+#include <utility>  // За std::move
 
+// --- Константни стойности за нивата ---
+const int ENEMY_MOVE_FREQ_LEVEL_1 = 15; // По-бавно
+const int ENEMY_FIRE_FREQ_LEVEL_1 = 25; // Рядко
+
+const int ENEMY_MOVE_FREQ_LEVEL_2 = 10; // По-бързо
+const int ENEMY_FIRE_FREQ_LEVEL_2 = 15; // По-често
+const int SCORE_FOR_EXTRA_LIFE = 300; // Точки за допълнителен живот
+
+const int ENEMY_MOVE_FREQ_LEVEL_3 = 5;  // Много бързо
+const int ENEMY_FIRE_FREQ_LEVEL_3 = 5;  // Постоянно стрелят
+
+// --- Console Setup and Teardown ---
 void Game::setupConsole() {
-    hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE); 
+    hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE);
     hBuffer = CreateConsoleScreenBuffer(
-        GENERIC_READ | GENERIC_WRITE,       
-        FILE_SHARE_READ | FILE_SHARE_WRITE, 
-        NULL,                               
-        CONSOLE_TEXTMODE_BUFFER,            
-        NULL                               
+        GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        NULL,
+        CONSOLE_TEXTMODE_BUFFER,
+        NULL
     );
 
-    
     COORD bufferSize = { (SHORT)SCREEN_WIDTH, (SHORT)SCREEN_HEIGHT };
     SetConsoleScreenBufferSize(hConsoleOutput, bufferSize);
     SetConsoleScreenBufferSize(hBuffer, bufferSize);
 
-    // Set the console window dimensions
     SMALL_RECT windowSize = { 0, 0, (SHORT)(SCREEN_WIDTH - 1), (SHORT)(SCREEN_HEIGHT - 1) };
     SetConsoleWindowInfo(hConsoleOutput, TRUE, &windowSize);
 
-    // Make the back buffer the active one, so drawing happens off-screen initially
     SetConsoleActiveScreenBuffer(hBuffer);
 
-    // Hide the console cursor for a cleaner look
     CONSOLE_CURSOR_INFO cursorInfo;
     GetConsoleCursorInfo(hBuffer, &cursorInfo);
-    cursorInfo.bVisible = FALSE; // Set cursor to invisible
+    cursorInfo.bVisible = FALSE;
     SetConsoleCursorInfo(hBuffer, &cursorInfo);
 
+    // Опционално: Програмно задаване на шрифта, ако ръчното не се запазва
+    /*
+    CONSOLE_FONT_INFOEX cfi;
+    cfi.cbSize = sizeof(cfi);
+    GetCurrentConsoleFontEx(hConsoleOutput, FALSE, &cfi);
+    cfi.dwFontSize.Y = 16;
+    wcscpy_s(cfi.FaceName, L"Cascadia Mono");
+    SetCurrentConsoleFontEx(hConsoleOutput, FALSE, &cfi);
+    */
 }
 
 void Game::teardownConsole() {
-    // Restore original console buffer (if you saved it, otherwise just close back buffer)
     SetConsoleActiveScreenBuffer(hConsoleOutput);
-    // Close the back buffer handle
     CloseHandle(hBuffer);
 }
 
-//constructor n destructor
+// --- Конструктор и Деструктор ---
 Game::Game()
-    : running(true), gameOver(false), score(0), player(nullptr), // Initialize members
+    : running(true), gameOver(false), score(0), currentLevel(1), lastExtraLifeScore(0),
+    player(nullptr), // Ще го създадем в resetGame
     enemyMoveTimer(0), enemyFireTimer(0),
-    enemyMoveFrequency(10), 
-    enemyFireFrequency(10), 
-    rng(std::chrono::system_clock::now().time_since_epoch().count()) // Seed random number generator
-{
-    setupConsole(); // Initialize console on construction
-    player = new Player(SCREEN_WIDTH / 2); 
-    spawnEnemies(); 
-    lastFrameTime = std::chrono::steady_clock::now(); // Initialize timer
+    enemyMoveFrequency(ENEMY_MOVE_FREQ_LEVEL_1), // Първоначална честота за Ниво 1
+    enemyFireFrequency(ENEMY_FIRE_FREQ_LEVEL_1), // Първоначална честота за Ниво 1
+    rng(std::chrono::system_clock::now().time_since_epoch().count()) {
+    setupConsole();
+    resetGame(); // Започваме играта, като я рестартираме за ниво 1
 }
 
 Game::~Game() {
-    // Clean up memory 
+    // Почистване на динамично заделената памет
     delete player;
-    for (Bullet* bullet : playerBullets) {
-        delete bullet;
-    }
-    for (Bullet* bullet : enemyBullets) {
-        delete bullet;
-    }
-    for (Enemy* enemy : enemies) {
-        delete enemy;
-    }
+    for (Bullet* bullet : playerBullets) { delete bullet; }
+    for (Bullet* bullet : enemyBullets) { delete bullet; }
+    for (Enemy* enemy : enemies) { delete enemy; }
     playerBullets.clear();
     enemyBullets.clear();
     enemies.clear();
@@ -79,307 +83,362 @@ Game::~Game() {
     teardownConsole();
 }
 
-//--------------------------------------------------------RUN
+// --- Основен цикъл на играта ---
 void Game::run() {
     while (running) {
-        // Calculate elapsed time for consistent updates
         auto currentTime = std::chrono::steady_clock::now();
-        auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>((currentTime - lastFrameTime)*10).count();
+        auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastFrameTime).count();
 
         if (elapsedTime >= GAME_SPEED_MS) {
-            lastFrameTime = currentTime; // Reset timer for next frame
+            lastFrameTime = currentTime;
 
-            processInput(); // Handle player input
-            updateGame();   // Update game state
-            renderGame();   // Draw everything to console
+            processInput();
+            updateGame();
+            renderGame();
 
             if (gameOver) {
-                running = false; // Exit game loop if game is over
+                running = false; // Прекратяваме цикъла, ако играта е свършила
             }
         }
-        // Small sleep to prevent busy-waiting and reduce CPU usage
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // Кратка пауза за намаляване на натоварването на процесора
     }
 
+    // --- Екран "Край на играта" / Изход ---
     COORD finalPos = { 0, 0 };
     DWORD charsWritten;
     FillConsoleOutputCharacterA(hConsoleOutput, ' ', SCREEN_WIDTH * SCREEN_HEIGHT, finalPos, &charsWritten);
     FillConsoleOutputAttribute(hConsoleOutput, BLACK, SCREEN_WIDTH * SCREEN_HEIGHT, finalPos, &charsWritten);
-
     SetConsoleCursorPosition(hConsoleOutput, finalPos);
 
     if (player && player->getLives() <= 0) {
-        std::wcout << L"Game Over! Your final score: " << score << std::endl;
-    }
-    else if (!enemies.empty() && !running) { // Check if game ended due to non-player death
-        std::wcout << L"Game Ended. Your final score: " << score << std::endl;
+        // Ако играчът умре на ниво 3, започва от ниво 1
+        if (currentLevel == 3) {
+            std::wcout << L"Играта свърши! Започваш от ниво 1. Твоят резултат: " << score << std::endl;
+            // Тук играта ще бъде рестартирана от run() ако не се излезе от цикъла.
+            // За сега просто показваме съобщение. Ако искаме истински рестарт
+            // от тук, трябва да се върнем в началото на run() или да извикаме resetGame().
+            // По-добре е да оставим run() да завърши и да стартира нова игра от main().
+        }
+        else {
+            std::wcout << L"Играта свърши! Твоят резултат: " << score << std::endl;
+        }
     }
     else {
-        std::wcout << L"Congratulations! You won! Final Score: " << score << std::endl;
+        std::wcout << L"Поздравления! Премина всички нива! Краен резултат: " << score << std::endl;
     }
-    std::wcout << L"Press any key to exit." << std::endl;
-    _getch(); // Wait for a key press before closing the console
+    std::wcout << L"Натисни произволен клавиш за изход." << std::endl;
+    _getch(); // Изчаква натискане на клавиш
 }
-//input handling
-void Game::processInput() {
-    if (_kbhit()) { // Check if a key has been pressed
-        int key = _getch(); // Get the pressed key (non-blocking)
 
+// --- Обработка на вход ---
+void Game::processInput() {
+    if (_kbhit()) {
+        int key = _getch();
         switch (key) {
-        case 'a': // Move player left
-        case 'A':
+        case 'a': case 'A':
             if (player) player->moveLeft();
             break;
-        case 'd': // Move player right
-        case 'D':
+        case 'd': case 'D':
             if (player) player->moveRight(SCREEN_WIDTH);
             break;
-        case ' ': // Fire bullet
+        case ' ': // Стрелба с интервал
             if (player) {
-                playerBullets.push_back(new Bullet(player->getX(), player->getY() - 1, L'|', WHITE, -1));
+                playerBullets.push_back(new Bullet(player->getX(), player->getY() - 1, L'|', WHITE, -1)); // Куршум нагоре
             }
             break;
-        case 27: // Escape key (ASCII for ESC) to quit
+        case 27: // ESC ключ за изход
             running = false;
             break;
         }
     }
 }
 
+// --- Обновяване на състоянието на играта ---
 void Game::updateGame() {
     if (gameOver) return;
 
-    // Update player bullets
+    // Адаптиране на честотите според текущото ниво
+    switch (currentLevel) {
+    case 1:
+        enemyMoveFrequency = ENEMY_MOVE_FREQ_LEVEL_1;
+        enemyFireFrequency = ENEMY_FIRE_FREQ_LEVEL_1;
+        break;
+    case 2:
+        enemyMoveFrequency = ENEMY_MOVE_FREQ_LEVEL_2;
+        enemyFireFrequency = ENEMY_FIRE_FREQ_LEVEL_2;
+        // Логика за бонус живот на ниво 2
+        if (player && player->getScore() >= lastExtraLifeScore + SCORE_FOR_EXTRA_LIFE) {
+            player->addLife();
+            lastExtraLifeScore = player->getScore(); // Обновяваме прага за следващ живот
+        }
+        break;
+    case 3:
+        enemyMoveFrequency = ENEMY_MOVE_FREQ_LEVEL_3;
+        enemyFireFrequency = ENEMY_FIRE_FREQ_LEVEL_3;
+        break;
+    }
+
+    // Обновяваме куршумите на играча
     for (Bullet* bullet : playerBullets) {
         bullet->update(SCREEN_WIDTH);
     }
-
-    // Update enemy bullets
+    // Обновяваме куршумите на врага
     for (Bullet* bullet : enemyBullets) {
         bullet->update(SCREEN_WIDTH);
     }
 
-    // Update enemies
+    // Обновяваме враговете
     bool edgeReached = false;
-    for (Enemy* enemy : enemies) {
-        enemy->update(SCREEN_WIDTH);
-        if (enemy->getX() <= 0 || enemy->getX() >= SCREEN_WIDTH - 1) {
-            edgeReached = true;
+    // Движение на враговете само при определена честота
+    if (++enemyMoveTimer >= enemyMoveFrequency) {
+        for (Enemy* enemy : enemies) {
+            enemy->update(SCREEN_WIDTH); // Актуализира позицията на врага
+            if (enemy->getX() <= 1 || enemy->getX() >= SCREEN_WIDTH - 2) { // Проверка за граница на екрана
+                edgeReached = true;
+            }
         }
+        enemyMoveTimer = 0; // Рестартираме таймера
     }
 
-    // If any enemy reached an edge, reverse all enemy directions and make them move down
+
+    // Ако враг достигне края, всички сменят посоката и слизат надолу
     if (edgeReached) {
         for (Enemy* enemy : enemies) {
-            enemy->setDirection(enemy->getDirection() * -1); // Reverse direction
-            enemy->setMoveDown(true); // Flag to move down next update
+            enemy->setDirection(enemy->getDirection() * -1); // Смяна на посоката
+            enemy->setMoveDown(true); // Задава флаг за слизане надолу
         }
     }
 
-    enemyFireTimer++;
-    if (enemyFireTimer >= enemyFireFrequency) {
+    // Логика за стрелба на враговете
+    if (++enemyFireTimer >= enemyFireFrequency) {
         if (!enemies.empty()) {
             std::uniform_int_distribution<> dist(0, enemies.size() - 1);
             int enemyIndex = dist(rng);
             Enemy* firingEnemy = enemies[enemyIndex];
-            enemyBullets.push_back(new Bullet(firingEnemy->getX(), firingEnemy->getY() + 1, L'v', RED, 1)); 
+            // Вражески куршум: L'v' или L'▼' (U+25BC)
+            enemyBullets.push_back(new Bullet(firingEnemy->getX(), firingEnemy->getY() + 1, L'▼', RED, 1));
         }
-        enemyFireTimer = 0; 
+        enemyFireTimer = 0; // Рестартираме таймера
     }
 
-    handleCollisions();
 
-    cleanupBullets();
+    handleCollisions(); // Обработва сблъсъците
+    cleanupBullets();   // Почиства куршуми извън екрана
 
+    // Проверка за край на играта (животи на играча)
     if (player && player->getLives() <= 0) {
         gameOver = true;
     }
 
-    checkWinCondition();
+    checkWinCondition(); // Проверява дали нивото е спечелено
 }
 
+// --- Рендиране ---
 void Game::renderGame() {
     COORD bufferOrigin = { 0, 0 };
     DWORD charsWritten;
-    // FillConsoleOutputCharacterA uses ' ' (space)
     FillConsoleOutputCharacterA(hBuffer, ' ', SCREEN_WIDTH * SCREEN_HEIGHT, bufferOrigin, &charsWritten);
     FillConsoleOutputAttribute(hBuffer, BLACK, SCREEN_WIDTH * SCREEN_HEIGHT, bufferOrigin, &charsWritten);
 
-    drawBorder(); 
+    drawBorder(); // Рисува границата
 
-    // Draw score and lives
-    std::wstring scoreStr = L"Score: " + std::to_wstring(score);
-    std::wstring livesStr = L"Lives: " + std::to_wstring(player ? player->getLives() : 0);
+    // Рисува резултат и животи
+    std::wstring scoreStr = L"Резултат: " + std::to_wstring(score);
+    std::wstring livesStr = L"Животи: " + std::to_wstring(player ? player->getLives() : 0);
+    std::wstring levelStr = L"Ниво: " + std::to_wstring(currentLevel);
 
     drawString(scoreStr, 0, 0, WHITE, BLACK, hBuffer);
     drawString(livesStr, 0, SCREEN_WIDTH - (int)livesStr.length() - 1, WHITE, BLACK, hBuffer);
+    // Позициониране на нивото (напр. по средата на горния ред)
+    drawString(levelStr, 0, SCREEN_WIDTH / 2 - (int)levelStr.length() / 2, WHITE, BLACK, hBuffer);
 
-    // Render player
-    if (player) {
-        player->render(hBuffer);
-    }
 
-    // Render bullets
-    for (Bullet* bullet : playerBullets) {
-        bullet->render(hBuffer);
-    }
-    for (Bullet* bullet : enemyBullets) {
-        bullet->render(hBuffer);
-    }
+    // Рендира играча, куршумите и враговете
+    if (player) { player->render(hBuffer); }
+    for (Bullet* bullet : playerBullets) { bullet->render(hBuffer); }
+    for (Bullet* bullet : enemyBullets) { bullet->render(hBuffer); }
+    for (Enemy* enemy : enemies) { enemy->render(hBuffer); }
 
-    // Render enemies
-    for (Enemy* enemy : enemies) {
-        enemy->render(hBuffer);
-    }
-
-    // Swap buffers: display the back buffer on the screen
-    SetConsoleActiveScreenBuffer(hBuffer);
+    SetConsoleActiveScreenBuffer(hBuffer); // Сменя буферите
 }
 
-//helper functions
+// --- Спомагателни функции ---
+
+// Рисува низ от символи
 void Game::drawString(const std::wstring& str, int y, int x, COLORS foreground_color, COLORS background_color, HANDLE target_buffer) const {
     for (size_t i = 0; i < str.length(); ++i) {
         draw_char(str[i], y, x + (int)i, foreground_color, background_color, target_buffer);
     }
 }
 
+// Рисува границата на играта
 void Game::drawBorder() const {
-    // Using Unicode line drawing characters (L'...')
-    const wchar_t HORIZONTAL_LINE = L'─'; // U+2500
-    const wchar_t VERTICAL_LINE = L'│';   // U+2502
-    const wchar_t TOP_LEFT_CORNER = L'┌'; // U+250C
-    const wchar_t TOP_RIGHT_CORNER = L'┐'; // U+2510
-    const wchar_t BOTTOM_LEFT_CORNER = L'└'; // U+2514
-    const wchar_t BOTTOM_RIGHT_CORNER = L'┘'; // U+2518
+    const wchar_t HORIZONTAL_LINE = L'─';
+    const wchar_t VERTICAL_LINE = L'│';
+    const wchar_t TOP_LEFT_CORNER = L'┌';
+    const wchar_t TOP_RIGHT_CORNER = L'┐';
+    const wchar_t BOTTOM_LEFT_CORNER = L'└';
+    const wchar_t BOTTOM_RIGHT_CORNER = L'┘';
 
-    // Draw top and bottom horizontal lines
-    for (int x = 1; x < SCREEN_WIDTH - 1; ++x) { // Exclude corners
-        draw_char(HORIZONTAL_LINE, 1, x, LIGHT_GREY, COLORS::BLACK, hBuffer); // Line below score
-        draw_char(HORIZONTAL_LINE, SCREEN_HEIGHT - 1, x, LIGHT_GREY, COLORS::BLACK, hBuffer); // Bottom line
+    for (int x = 1; x < SCREEN_WIDTH - 1; ++x) {
+        draw_char(HORIZONTAL_LINE, 1, x, LIGHT_GREY, COLORS::BLACK, hBuffer);
+        draw_char(HORIZONTAL_LINE, SCREEN_HEIGHT - 1, x, LIGHT_GREY, COLORS::BLACK, hBuffer);
     }
 
-    // Draw left and right vertical lines
-    for (int y = 2; y < SCREEN_HEIGHT - 1; ++y) { // Exclude top row and bottom row for horizontal lines
+    for (int y = 2; y < SCREEN_HEIGHT - 1; ++y) {
         draw_char(VERTICAL_LINE, y, 0, LIGHT_GREY, COLORS::BLACK, hBuffer);
         draw_char(VERTICAL_LINE, y, SCREEN_WIDTH - 1, LIGHT_GREY, COLORS::BLACK, hBuffer);
     }
 
-    // Draw corners
     draw_char(TOP_LEFT_CORNER, 1, 0, LIGHT_GREY, COLORS::BLACK, hBuffer);
     draw_char(TOP_RIGHT_CORNER, 1, SCREEN_WIDTH - 1, LIGHT_GREY, COLORS::BLACK, hBuffer);
     draw_char(BOTTOM_LEFT_CORNER, SCREEN_HEIGHT - 1, 0, LIGHT_GREY, COLORS::BLACK, hBuffer);
     draw_char(BOTTOM_RIGHT_CORNER, SCREEN_HEIGHT - 1, SCREEN_WIDTH - 1, LIGHT_GREY, COLORS::BLACK, hBuffer);
 }
 
+// Създава врагове според текущото ниво
 void Game::spawnEnemies() {
-    const int ENEMY_ROWS = 5;
-    const int ENEMY_COLS = 10;
+    // Изчистваме съществуващи врагове, ако има такива
+    for (Enemy* enemy : enemies) { delete enemy; }
+    enemies.clear();
+
+    const int ENEMY_ROWS = 3; // По-малко редове, за да не пълнят екрана веднага
+    const int ENEMY_COLS = 8;
     const int START_X = 5;
-    const int START_Y = 3;
+    const int START_Y_LEVEL_1 = 3; // По-високо за ниво 1
+    const int START_Y_LEVEL_2 = 4; // Малко по-ниско за ниво 2
+    const int START_Y_LEVEL_3 = 5; // Още по-ниско за ниво 3
     const int X_SPACING = 3;
     const int Y_SPACING = 2;
+
+    int current_start_y = START_Y_LEVEL_1;
+    if (currentLevel == 2) current_start_y = START_Y_LEVEL_2;
+    else if (currentLevel == 3) current_start_y = START_Y_LEVEL_3;
 
     for (int r = 0; r < ENEMY_ROWS; ++r) {
         for (int c = 0; c < ENEMY_COLS; ++c) {
             enemies.push_back(new Enemy(
                 START_X + c * X_SPACING,
-                START_Y + r * Y_SPACING,
-                L'█', // Solid block symbol
-                YELLOW, // Yellow color for enemies
-                1 // Initial direction (1 for right)
+                current_start_y + r * Y_SPACING,
+                L'█', // Плътен блок
+                YELLOW, // Жълт цвят за враговете
+                1 // Първоначална посока (1 за надясно)
             ));
         }
     }
 }
 
-
+// Обработка на сблъсъци
 void Game::handleCollisions() {
-    // --- Player bullet vs Enemy ---
-    // Iterate through player bullets and remove them if they hit an enemy.
+    // Куршум на играча срещу враг
     playerBullets.erase(std::remove_if(playerBullets.begin(), playerBullets.end(),
         [&](Bullet* pBullet) {
             bool collided = false;
-            // Iterate through enemies and remove them if hit by the current player bullet.
             enemies.erase(std::remove_if(enemies.begin(), enemies.end(),
                 [&](Enemy* enemy) {
-                    // Check for collision between player bullet and enemy
                     if (pBullet->getX() == enemy->getX() && pBullet->getY() == enemy->getY()) {
-                        score += 10;     // Increase score
-                        collided = true; // Mark player bullet for removal
-                        delete enemy;    // Delete the enemy object from memory
-                        return true;     // Remove enemy from list
+                        player->addScore(10); // Увеличава резултата на играча
+                        collided = true;
+                        delete enemy;
+                        return true;
                     }
                     return false;
                 }),
                 enemies.end());
-            return collided; // Remove player bullet if it collided
+            return collided;
         }),
         playerBullets.end());
 
-    // --- Enemy bullet vs Player ---
-    // Iterate through enemy bullets and remove them if they hit the player.
+    // Куршум на врага срещу играча
     enemyBullets.erase(std::remove_if(enemyBullets.begin(), enemyBullets.end(),
         [&](Bullet* eBullet) {
-            // Check if player exists and if enemy bullet hits the player
             if (player && eBullet->getX() == player->getX() && eBullet->getY() == player->getY()) {
-                player->loseLife(); // Player loses a life
-                delete eBullet;     // Delete the enemy bullet from memory
-                return true;        // Remove enemy bullet from list
+                player->loseLife(); // Играчът губи живот
+                delete eBullet;
+                return true;
             }
             return false;
         }),
         enemyBullets.end());
 
-    // --- Enemy vs Player (NEW LOGIC) ---
-    // Iterate through enemies to check if any enemy has touched the player.
-    // If an enemy touches the player, the player instantly dies.
-    for (auto enemyIt = enemies.begin(); enemyIt != enemies.end();) {
-        Enemy* currentEnemy = *enemyIt;
-        if (player && currentEnemy->getX() == player->getX() && currentEnemy->getY() == player->getY()) {
-            player->loseLife();      // Player loses a life
-            player->loseLife();      // Ensure player loses all lives by calling it repeatedly
-            player->loseLife();      // If you only have 3 lives, calling it 3 times sets lives to 0
-            // Alternatively, you can add a setLives(0) method to Player.
-            gameOver = true;         // Set game over flag
-            running = false;         // Stop the main game loop
-
-            delete currentEnemy;     // Delete the enemy that caused the collision
-            enemyIt = enemies.erase(enemyIt); // Remove enemy from list
-            break;                   // Player is dead, no need to check other enemies
-        }
-        else {
-            ++enemyIt; // Move to the next enemy if no collision
-        }
-    }
+    // Враг срещу играча (НОВА ЛОГИКА - незабавна смърт)
+    enemies.erase(std::remove_if(enemies.begin(), enemies.end(),
+        [&](Enemy* enemy) {
+            if (player && enemy->getX() == player->getX() && enemy->getY() == player->getY()) {
+                player->resetLives(); // Играчът губи всички животи
+                gameOver = true;      // Играта свършва
+                running = false;      // Прекратяваме цикъла
+                delete enemy;         // Изтриваме врага
+                return true;          // Премахваме врага от списъка
+            }
+            return false;
+        }),
+        enemies.end());
 }
 
+// Почиства куршуми извън екрана
 void Game::cleanupBullets() {
-    // Remove player bullets that are off-screen
     playerBullets.erase(std::remove_if(playerBullets.begin(), playerBullets.end(),
         [](Bullet* bullet) {
-            if (bullet->getY() < 1) { // Off top of screen
-                delete bullet;
-                return true;
-            }
+            if (bullet->getY() < 1) { delete bullet; return true; }
             return false;
-        }),
-        playerBullets.end());
+        }), playerBullets.end());
 
-    // Remove enemy bullets that are off-screen
     enemyBullets.erase(std::remove_if(enemyBullets.begin(), enemyBullets.end(),
         [](Bullet* bullet) {
-            if (bullet->getY() > SCREEN_HEIGHT - 1) { // Off bottom of screen
-                delete bullet;
-                return true;
-            }
+            if (bullet->getY() > SCREEN_HEIGHT - 1) { delete bullet; return true; }
             return false;
-        }),
-        enemyBullets.end());
+        }), enemyBullets.end());
 }
 
+// Проверява дали нивото е спечелено и преминава към следващо
 void Game::checkWinCondition() {
     if (enemies.empty()) {
-        gameOver = true; 
-        running = false; 
+        if (currentLevel < 3) { // Има още нива
+            currentLevel++;      // Преминаваме към следващо ниво
+            resetForNewLevel();  // Рестартираме за новото ниво
+        }
+        else { // Всички нива са завършени
+            gameOver = true;
+            running = false;
+        }
     }
+}
+
+// Подготвя играта за ново ниво (или за рестарт)
+void Game::resetForNewLevel() {
+    // Изчистваме всички куршуми
+    for (Bullet* bullet : playerBullets) { delete bullet; }
+    playerBullets.clear();
+    for (Bullet* bullet : enemyBullets) { delete bullet; }
+    enemyBullets.clear();
+
+    // Препозиционираме играча
+    if (player) {
+        player->setX(SCREEN_WIDTH / 2);
+        // Player->setY(PLAYER_Y_START) already in constructor
+    }
+
+    spawnEnemies(); // Създаваме нови врагове за новото ниво
+    // Честотите ще бъдат зададени в updateGame() при следващия цикъл
+
+    // Може да добавите кратко съобщение "Ниво X"
+    // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+}
+
+// Рестартира цялата игра от ниво 1
+void Game::resetGame() {
+    score = 0;
+    currentLevel = 1;
+    lastExtraLifeScore = 0;
+    gameOver = false;
+    running = true;
+
+    // Създаваме нов играч или рестартираме съществуващия
+    if (player) {
+        delete player; // Изтриваме стария играч
+    }
+    player = new Player(SCREEN_WIDTH / 2); // Създаваме нов играч (resetLives е в конструктора)
+
+    resetForNewLevel(); // Използваме тази функция за да почисти и създаде врагове
 }
