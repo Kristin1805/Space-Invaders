@@ -111,13 +111,8 @@ void Game::run() {
     SetConsoleCursorPosition(hConsoleOutput, finalPos);
 
     if (player && player->getLives() <= 0) {
-        // Ако играчът умре на ниво 3, започва от ниво 1
         if (currentLevel == 3) {
             std::wcout << L"Играта свърши! Започваш от ниво 1. Твоят резултат: " << score << std::endl;
-            // Тук играта ще бъде рестартирана от run() ако не се излезе от цикъла.
-            // За сега просто показваме съобщение. Ако искаме истински рестарт
-            // от тук, трябва да се върнем в началото на run() или да извикаме resetGame().
-            // По-добре е да оставим run() да завърши и да стартира нова игра от main().
         }
         else {
             std::wcout << L"Играта свърши! Твоят резултат: " << score << std::endl;
@@ -127,10 +122,9 @@ void Game::run() {
         std::wcout << L"Поздравления! Премина всички нива! Краен резултат: " << score << std::endl;
     }
     std::wcout << L"Натисни произволен клавиш за изход." << std::endl;
-    _getch(); // Изчаква натискане на клавиш
+    _getch();
 }
 
-// --- Обработка на вход ---
 void Game::processInput() {
     if (_kbhit()) {
         int key = _getch();
@@ -153,7 +147,6 @@ void Game::processInput() {
     }
 }
 
-// --- Обновяване на състоянието на играта ---
 void Game::updateGame() {
     if (gameOver) return;
 
@@ -223,6 +216,9 @@ void Game::updateGame() {
 
 
     handleCollisions(); // Обработва сблъсъците
+    if (player) { 
+        score = player->getScore(); // Синхронизира резултата на класа Game с резултата на играча
+    }
     cleanupBullets();   // Почиства куршуми извън екрана
 
     // Проверка за край на играта (животи на играча)
