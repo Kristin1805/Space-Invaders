@@ -53,6 +53,8 @@ cmake-build-debug/**/*
 *.layout
 *.idea/
 *.vscode/
+#test ignore
+*.vs/
 
 # Ignore log and temporary files
 *.log

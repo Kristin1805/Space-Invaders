@@ -1,47 +1,43 @@
-#include "Enemy.h"
-#include <iostream>
-using namespace std;
+﻿#include "Enemy.h" // Include the Enemy header
 
-
-Enemy::Enemy() : GameObject(), direction(1), moveDown(false) {} // Създава нов враг празния конструктор на GameObject
-// Задаваме direction = 1 (движи се надолу)
-
-Enemy::Enemy(int x, int y, char symbol, COLORS color, int direction)
-    : GameObject(x, y, symbol, color), direction(direction), moveDown(false) {} // Създава враг с конкретни данни , конструктора на
-// GameObject с x, y, symbol, color.
-
-Enemy::Enemy(const Enemy& other) : GameObject(other), direction(other.direction), moveDown(other.moveDown) {} // sъздава копие на друг враг
-
-Enemy::Enemy(Enemy&& other) noexcept : GameObject(move(other)), direction(other.direction), moveDown(other.moveDown) {}
-
-Enemy& Enemy::operator=(const Enemy& other) { // Присвояване враг1 = враг2
-    if (this != &other) { // Проверяваме дали не са един и същи
-        GameObject::operator=(other); // трябва да копираме всичко от GameObject
-        direction = other.direction; // трябва да копираме direction (собствено поле на Enemy)
-        moveDown = other.moveDown;
-    }
-    return *this;
+// --- Constructors ---
+Enemy::Enemy() : GameObject(), direction(1), moveDown(false) {
+    // Default constructor: Initializes with GameObject defaults, direction right, no move down.
 }
 
-Enemy::~Enemy() {} //  Унищожава
+Enemy::Enemy(int x, int y, wchar_t symbol, COLORS color, int direction) // Symbol is wchar_t
+    : GameObject(x, y, L'█', color), direction(direction), moveDown(false) {
+    // Parameterized constructor: Initializes enemy at (x,y) with a solid block symbol, color, and direction.
+    // L'█' (Unicode U+2588) is used as the default enemy symbol.
+}
 
+// --- Overridden Virtual Functions ---
 void Enemy::update(int screenWidth) {
     if (moveDown) {
-        y += 1;         // Слизаме надолу
-        moveDown = false; // Ресетваме флага
-    } else {
-        x += direction; // Движим се наляво/надясно
-        if (x <= 0 || x >= screenWidth - 1) {
-            moveDown = true; // При ръб, задаваме да слезе надолу
-            direction *= -1; // Смяна на посоката
-        }
+        y++; // Move down one row
+        moveDown = false; // Reset the flag
     }
+    x += direction; // Move horizontally
 }
 
-void Enemy::render() const { // рисува врага на екрана с draw_char.
-    draw_char(symbol, y, x, color, BLACK);
+void Enemy::render(HANDLE target_buffer) const {
+    // Renders the enemy's symbol at its current position with its color.
+    draw_char(symbol, y, x, color, COLORS::BLACK, target_buffer);
 }
 
-int Enemy::getDirection() const { return direction; }
-void Enemy::setDirection(int dir) { direction = dir; }
-void Enemy::setMoveDown(bool value) { moveDown = value; }
+// --- Enemy-Specific Getters/Setters/Methods ---
+void Enemy::setDirection(int dir) {
+    direction = dir;
+}
+
+int Enemy::getDirection() const {
+    return direction;
+}
+
+void Enemy::setMoveDown(bool down) {
+    moveDown = down;
+}
+
+bool Enemy::getMoveDown() const {
+    return moveDown;
+}

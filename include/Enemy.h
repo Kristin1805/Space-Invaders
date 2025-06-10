@@ -1,28 +1,26 @@
 #ifndef ENEMY_H
 #define ENEMY_H
-#pragma once
-#include "GameObject.h"
+
+#include "GameObject.h" 
 
 class Enemy : public GameObject {
 private:
-    int direction;      // +1 за надясно, -1 за наляво
-    bool moveDown;      // дали врагът трябва да слезе надолу
+    int direction; 
+    bool moveDown; 
 
 public:
-    Enemy();  // конструктор по подразбиране
-    Enemy(int x, int y, char symbol, COLORS color, int direction); // конструктор с параметри
-    Enemy(const Enemy& other);  // копиращ конструктор
-    Enemy(Enemy&& other) noexcept; // преместващ конструктор
-    Enemy& operator=(const Enemy& other); // присвояване
+    Enemy(); 
+    Enemy(int x, int y, wchar_t symbol, COLORS color, int direction); 
 
-    ~Enemy(); // Унищожава
 
-    void update(int screenWidth) override;  // движение по хоризонтала + слизане надолу
-    void render() const override; // "нарисува" енеми на екрана
+    void update(int screenWidth) override; 
+    void render(HANDLE target_buffer) const override; 
 
-    int getDirection() const;  // гетър за посоката.
-    void setDirection(int dir); // сетър за посоката
-    void setMoveDown(bool value); // сетър за moveDown
+    void setDirection(int dir); 
+
+    int getDirection() const;
+    void setMoveDown(bool down); 
+    bool getMoveDown() const;
 };
 
-#endif //ENEMY_H
+#endif // ENEMY_H

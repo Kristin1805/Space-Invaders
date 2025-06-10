@@ -1,36 +1,52 @@
-#include "Bullet.h"
-#include <windows.h>
+#ifndef BULLET_H
+#define BULLET_H
 
-extern HANDLE hConsoleOutput;
+#include "GameObject.h" // Include the base GameObject class
 
-void draw_char(char ch, int y, int x, COLORS foreground_color, COLORS background_color) {
-    CHAR_INFO ch_info;
-    ch_info.Char.AsciiChar = ch;
-    ch_info.Attributes = foreground_color | (background_color << 4);
+class Bullet : public GameObject {
+private:
+    int direction; // -1 for player bullet (up), 1 for enemy bullet (down)
 
-    COORD buf_size = {1, 1};
-    COORD buf_coord = {0, 0};
-    SMALL_RECT screen_pos = {x, y, x+1, y+1};
-    ::WriteConsoleOutput(hConsoleOutput, &ch_info, buf_size, buf_coord, &screen_pos);
+public:
+    // Constructors
+    Bullet(); // Default constructor
+    // Parameterized constructor for creating a bullet (symbol is pre-defined for bullets)
+    Bullet(int x, int y, wchar_t symbol, COLORS color, int direction); // <<< symbol is wchar_t
+
+    // Overridden virtual functions from GameObject
+    void update(int screenWidth) override; // Bullet-specific update logic (movement)
+    void render(HANDLE target_buffer) const override; // Bullet-specific rendering
+
+    // Bullet-specific getter
+    int getDirection() const;
+};
+
+#endif // BULLET_H
+#include "Bullet.h" // Include the Bullet header
+
+// --- Constructors ---
+Bullet::Bullet() : GameObject(), direction(-1) {
+    // Default constructor: Initializes with GameObject defaults and direction up.
 }
 
-Bullet::Bullet() : GameObject(), direction(-1) {}
+Bullet::Bullet(int x, int y, wchar_t symbol, COLORS color, int direction) // Symbol is wchar_t
+    : GameObject(x, y, L'•', color), direction(direction) {
+    // Parameterized constructor: Initializes bullet at (x,y) with a specific symbol and direction.
+    // L'•' (Unicode U+2022) is used as the default bullet symbol.
+}
 
-Bullet::Bullet(int x, int y, char symbol, COLORS color, int direction)
-    : GameObject(x, y, symbol, color), direction(direction) {}
-
-void Bullet::update() {
+// --- Overridden Virtual Functions ---
+void Bullet::update(int screenWidth) {
+    // Moves the bullet based on its direction
     y += direction;
 }
 
-void Bullet::render() const {
-    draw_char(symbol, y, x, color, COLORS::BLACK);
+void Bullet::render(HANDLE target_buffer) const {
+    // Renders the bullet's symbol at its current position with its color.
+    draw_char(symbol, y, x, color, COLORS::BLACK, target_buffer);
 }
 
+// --- Bullet-Specific Getter ---
 int Bullet::getDirection() const {
     return direction;
-}
-
-void Bullet::setDirection(int dir) {
-    direction = dir;
 }

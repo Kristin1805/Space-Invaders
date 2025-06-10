@@ -1,22 +1,20 @@
 #ifndef BULLET_H
 #define BULLET_H
 
-#include "GameObject.h"
+#include "GameObject.h" 
 
 class Bullet : public GameObject {
 private:
-    int direction;
+    int direction; 
 
 public:
-    Bullet();
-    Bullet(int x, int y, char symbol, COLORS color, int direction);
+    Bullet(); 
+    Bullet(int x, int y, wchar_t symbol, COLORS color, int direction); 
 
-    void update() override;
-    void render() const override;
+    void update(int screenWidth) override; 
+    void render(HANDLE target_buffer) const override; 
 
     int getDirection() const;
-    void setDirection(int direction);
 };
 
 #endif // BULLET_H
-
