@@ -79,12 +79,12 @@ Game::~Game() {
     teardownConsole();
 }
 
-
+//--------------------------------------------------------RUN
 void Game::run() {
     while (running) {
         // Calculate elapsed time for consistent updates
         auto currentTime = std::chrono::steady_clock::now();
-        auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastFrameTime).count();
+        auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>((currentTime - lastFrameTime)*10).count();
 
         if (elapsedTime >= GAME_SPEED_MS) {
             lastFrameTime = currentTime; // Reset timer for next frame
@@ -292,18 +292,22 @@ void Game::spawnEnemies() {
     }
 }
 
+
 void Game::handleCollisions() {
-    // Player bullet vs Enemy
+    // --- Player bullet vs Enemy ---
+    // Iterate through player bullets and remove them if they hit an enemy.
     playerBullets.erase(std::remove_if(playerBullets.begin(), playerBullets.end(),
         [&](Bullet* pBullet) {
             bool collided = false;
+            // Iterate through enemies and remove them if hit by the current player bullet.
             enemies.erase(std::remove_if(enemies.begin(), enemies.end(),
                 [&](Enemy* enemy) {
+                    // Check for collision between player bullet and enemy
                     if (pBullet->getX() == enemy->getX() && pBullet->getY() == enemy->getY()) {
-                        score += 10; // Increase score
+                        score += 10;     // Increase score
                         collided = true; // Mark player bullet for removal
-                        delete enemy; // Delete the enemy object
-                        return true; // Remove enemy from list
+                        delete enemy;    // Delete the enemy object from memory
+                        return true;     // Remove enemy from list
                     }
                     return false;
                 }),
@@ -312,17 +316,41 @@ void Game::handleCollisions() {
         }),
         playerBullets.end());
 
-    // Enemy bullet vs Player
+    // --- Enemy bullet vs Player ---
+    // Iterate through enemy bullets and remove them if they hit the player.
     enemyBullets.erase(std::remove_if(enemyBullets.begin(), enemyBullets.end(),
         [&](Bullet* eBullet) {
+            // Check if player exists and if enemy bullet hits the player
             if (player && eBullet->getX() == player->getX() && eBullet->getY() == player->getY()) {
                 player->loseLife(); // Player loses a life
-                delete eBullet; // Delete the enemy bullet
-                return true; // Remove enemy bullet from list
+                delete eBullet;     // Delete the enemy bullet from memory
+                return true;        // Remove enemy bullet from list
             }
             return false;
         }),
         enemyBullets.end());
+
+    // --- Enemy vs Player (NEW LOGIC) ---
+    // Iterate through enemies to check if any enemy has touched the player.
+    // If an enemy touches the player, the player instantly dies.
+    for (auto enemyIt = enemies.begin(); enemyIt != enemies.end();) {
+        Enemy* currentEnemy = *enemyIt;
+        if (player && currentEnemy->getX() == player->getX() && currentEnemy->getY() == player->getY()) {
+            player->loseLife();      // Player loses a life
+            player->loseLife();      // Ensure player loses all lives by calling it repeatedly
+            player->loseLife();      // If you only have 3 lives, calling it 3 times sets lives to 0
+            // Alternatively, you can add a setLives(0) method to Player.
+            gameOver = true;         // Set game over flag
+            running = false;         // Stop the main game loop
+
+            delete currentEnemy;     // Delete the enemy that caused the collision
+            enemyIt = enemies.erase(enemyIt); // Remove enemy from list
+            break;                   // Player is dead, no need to check other enemies
+        }
+        else {
+            ++enemyIt; // Move to the next enemy if no collision
+        }
+    }
 }
 
 void Game::cleanupBullets() {
