@@ -20,7 +20,7 @@ public:
 
     void moveLeft();
     void moveRight(int screenWidth);
-    void loseLife(); // Намалява животите на играча
+    void loseLife();
     void addLife();  
     void resetLives(); 
     int getLives() const;
