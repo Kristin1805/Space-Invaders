@@ -44,7 +44,6 @@ private:
     int enemyFireFrequency;
     std::mt19937 rng;
 
-    // Помощни методи
     void setupConsole();
     void teardownConsole();
     void processInput();
