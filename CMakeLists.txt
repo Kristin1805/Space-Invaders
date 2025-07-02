@@ -14,4 +14,6 @@ add_executable(Space_Invaders
     src/enemy.cpp
     src/game.cpp
     src/main.cpp
-    src/player.cpp)
+    src/player.cpp
+        include/EnemyTypes.h
+        src/EnemyTypes.cpp)

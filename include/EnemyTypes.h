@@ -1,8 +1,30 @@
-//
-// Created by kalin on 2.7.2025 г..
-//
+#ifndef ENEMY_TYPES_H
+#define ENEMY_TYPES_H
 
-#ifndef ENEMYTYPES_H
-#define ENEMYTYPES_H
+#include "Enemy.h"
 
-#endif //ENEMYTYPES_H
+class EnemyType1 : public Enemy {
+public:
+    EnemyType1(int x, int y);
+    int getScoreValue() const override;
+};
+
+class EnemyType2 : public Enemy {
+public:
+    EnemyType2(int x, int y);
+    int getScoreValue() const override;
+};
+
+class EnemyType3 : public Enemy {
+public:
+    EnemyType3(int x, int y);
+    int getScoreValue() const override;
+};
+
+class EnemyType4 : public Enemy {
+public:
+    EnemyType4(int x, int y);
+    int getScoreValue() const override;
+};
+
+#endif // ENEMY_TYPES_H

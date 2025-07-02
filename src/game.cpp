@@ -1,4 +1,5 @@
 ﻿#include "Game.h"
+#include "EnemyTypes.h"
 #include <conio.h>
 #include <thread>
 #include <algorithm>
@@ -293,15 +294,18 @@ void Game::spawnEnemies() {
 
     for (int r = 0; r < ENEMY_ROWS; ++r) {
         for (int c = 0; c < ENEMY_COLS; ++c) {
-            enemies.push_back(new Enemy(
-                START_X + c * X_SPACING,
-                current_start_y + r * Y_SPACING,
-                L'█', 
-                YELLOW, 
-                1 
-            ));
+            int x = START_X + c * X_SPACING;
+            int y = current_start_y + r * Y_SPACING;
+
+            Enemy* enemy = nullptr;
+            if (r == 0) enemy = new EnemyType1(x, y);
+            else if (r == 1) enemy = new EnemyType2(x, y);
+            else            enemy = new EnemyType3(x, y);
+
+            enemies.push_back(enemy);
         }
     }
+
 }
 
 void Game::handleCollisions() {
@@ -312,7 +316,7 @@ void Game::handleCollisions() {
             enemies.erase(std::remove_if(enemies.begin(), enemies.end(),
                 [&](Enemy* enemy) {
                     if (pBullet->getX() == enemy->getX() && pBullet->getY() == enemy->getY()) {
-                        player->addScore(10); // Увеличава резултата на играча
+                        player->addScore(enemy->getScoreValue()); // Увеличава резултата на играча
                         collided = true;
                         delete enemy;
                         return true;

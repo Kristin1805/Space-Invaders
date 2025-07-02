@@ -21,6 +21,7 @@ public:
     int getDirection() const;
     void setMoveDown(bool down); 
     bool getMoveDown() const;
+    virtual int getScoreValue() const = 0;
 };
 
 #endif // ENEMY_H
