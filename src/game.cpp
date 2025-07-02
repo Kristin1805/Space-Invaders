@@ -57,6 +57,7 @@ Game::Game()
     enemyFireFrequency(ENEMY_FIRE_FREQ_LEVEL_1),
     rng(std::chrono::system_clock::now().time_since_epoch().count()),
     lastPlayerFireTime(std::chrono::steady_clock::now()) { 
+    lastPlayerFireTime(std::chrono::steady_clock::now()) {
     setupConsole();
     resetGame();
 }
@@ -205,6 +206,8 @@ void Game::updateGame() {
     handleCollisions();
     if (player) { 
         score = player->getScore(); 
+    if (player) {
+        score = player->getScore();
     }
     cleanupBullets();
 
@@ -222,6 +225,7 @@ void Game::renderGame() {
     FillConsoleOutputAttribute(hBuffer, BLACK, SCREEN_WIDTH * SCREEN_HEIGHT, bufferOrigin, &charsWritten);
 
     drawBorder(); 
+    drawBorder();
 
     // Рисува резултат и животи
     std::wstring scoreStr = L"Резултат: " + std::to_wstring(score);
@@ -293,13 +297,6 @@ void Game::spawnEnemies() {
 
     for (int r = 0; r < ENEMY_ROWS; ++r) {
         for (int c = 0; c < ENEMY_COLS; ++c) {
-            enemies.push_back(new Enemy(
-                START_X + c * X_SPACING,
-                current_start_y + r * Y_SPACING,
-                L'█', 
-                YELLOW, 
-                1 
-            ));
         }
     }
 }
@@ -312,7 +309,6 @@ void Game::handleCollisions() {
             enemies.erase(std::remove_if(enemies.begin(), enemies.end(),
                 [&](Enemy* enemy) {
                     if (pBullet->getX() == enemy->getX() && pBullet->getY() == enemy->getY()) {
-                        player->addScore(10); // Увеличава резултата на играча
                         collided = true;
                         delete enemy;
                         return true;

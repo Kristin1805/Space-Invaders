@@ -3,6 +3,7 @@ project(Space_Invaders)
 
 set(CMAKE_CXX_STANDARD 14)
 
+
 include_directories(include)
 
 add_executable(Space_Invaders
@@ -14,4 +15,4 @@ add_executable(Space_Invaders
     src/enemy.cpp
     src/game.cpp
     src/main.cpp
-    src/player.cpp)
+        src/GameObject.cpp)
